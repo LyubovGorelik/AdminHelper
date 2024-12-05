@@ -1,0 +1,7 @@
+position: 2 # для сортировки папки в сайдбаре
+label: ФТ и НФТ # название пункта меню в сайдбаре
+collapsible: true
+collapsed: true
+link:
+  type: generated-index
+  title: ФТ и НФТ # Заголовок на странице
