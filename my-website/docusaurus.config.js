@@ -8,7 +8,7 @@ const config = {
   tagline: 'Start', // Описание сайта на начальной странице
   favicon: 'img/favicon.ico', // Иконка сайта
   url: 'https://LyubovGorelik.github.io/', // Адрес gitlab pages, обычно https://<username>.github.io
-  baseUrl: 'AdminHelper', // Базовый url, обычно название репозитория
+  baseUrl: '/AdminHelper/', // Базовый url, обычно название репозитория
   organizationName: 'LyubovGorelik', // Имя GitHub пользователя
   projectName: 'AdminHelper', // Имя репозитория
   onBrokenLinks: 'warn', // Чтобы не падать при наличии неработающих ссылок
