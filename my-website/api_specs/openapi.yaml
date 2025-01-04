@@ -17,7 +17,7 @@ components:
           type: string
           description: Полное имя клиента (ФИО)
           example: "Иванова Анна Ивановна"
-        clientid:
+        ClientId:
           type: string
           description: Номер телефона клиента
           example: "82345678990"
@@ -28,7 +28,7 @@ components:
           example: "ivanov@example.com"
       required:
         - fullName
-        - phoneNumber
+        - clientid
         - email
 
     Service:
@@ -43,7 +43,11 @@ components:
           format: float
           description: Цена услуги
           example: 1500.00
-        description:
+        time:
+          type: number
+          description: Длительность услуги
+          example: 10
+        Servicedescription:
           type: string
           description: Краткое описание услуги
           example: "Маникюр с покрытием гель-лак. Без дизайна. Ремонт не более 2х ногтей входит в стоимость"
@@ -56,7 +60,7 @@ components:
       items:
         $ref: '#/components/schemas/Service'
        
-    SelectedServices:
+    SumServices:
       type: object
       properties:
         totalPrice:
@@ -64,6 +68,11 @@ components:
           format: float
           description: "Сумма цен всех выбранных услуг"
           example: 3000.00
+        totalTime:
+          type: number
+          format: float
+          description: "Длительность всей процедуры"
+          example: 90
         selectedServices:
           $ref: '#/components/schemas/Service'
         
@@ -101,29 +110,6 @@ components:
       type: array
       items:
         $ref: '#/components/schemas/MasterShort'
-    
-    TimeInterval:
-      type: object
-      properties:
-        date:
-          type: string
-          format: date
-          description: Дата, на которую клиент хочет записаться
-          example: "2023-10-15"
-        startTime:
-          type: string
-          format: time
-          description: МСамое раннее время начала услуги в формате ЧЧ:ММ
-          example: "14:30"
-        endTime:
-          type: string
-          format: time
-          description: Самое позднее время начала услуги в формате ЧЧ:ММ
-          example: "15:30"
-      required:
-        - date
-        - startTime
-        - endTime
 
     TimeSlot:
       type: object
@@ -131,27 +117,67 @@ components:
         startTime:
           type: string
           format: date-time
-          description: Время начала временного окошка
+          description: Время для начала работы
           example: "2023-10-15T14:30:00Z"
+        
 
     TimeSlotsList:
       type: array
       items:
         $ref: '#/components/schemas/TimeSlot'
                 
+    ErrorCode:
+      type: string
+      enum:
+        - NOT_FOUND
+        - INVALID_INPUT
+        - FORBIDDEN  
+        - SERVER_ERROR
+
     Error:
       type: object
       properties:
         message:
           type: string
+          description: Описание ошибки
         code:
-          type: integer
-
+          $ref: '#/components/schemas/ErrorCode'
+      required:
+        - message
+        - code
+        
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      
+  parameters:
+    clientId:
+      name: clientId
+      in: path
+      required: true
+      description: Номер телефона клиента
+      schema:
+        type: string
+
+    masterId:
+      name: masterId
+      in: path
+      required: true
+      description: MasterId
+      schema:
+        type: string
+        
+    selectedservices:
+      name: selectedservices
+      in: query
+      required: true
+      description: Список идентификаторов выбранных услуг, разделенных запятыми
+      schema:
+        type: array
+        items:
+          type: string
 
                 
 paths:
@@ -176,6 +202,10 @@ paths:
           description: Код отправлен
         '400':
           description: Ошибка в запросе
+        '500':
+          description: Внутренняя ошибка сервера
+        '503':
+          description: Сервис временно недоступен
 
   /auth/verify:
     post:
@@ -205,8 +235,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  /clients:
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Сервис временно недоступен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /clients/{clientId}:
     get:
       tags:
         - Информация о клиенте
@@ -215,13 +257,7 @@ paths:
       security:
         - BearerAuth: [] 
       parameters:
-        - name: phoneNumber
-          in: query
-          required: true
-          description: Номер телефона клиента для получения информации
-          schema:
-            type: string
-            example: "+1234567890"
+        - $ref: '#/components/parameters/clientId'
       responses:
         '200':
           description: Информация о клиенте успешно получена
@@ -235,6 +271,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Сервис временно недоступен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
 
     put:
       tags:
@@ -249,6 +298,8 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ClientInformation'
+      parameters:
+        - $ref: '#/components/parameters/clientId'
       responses:
         '200':
           description: Информация о клиенте успешно обновлена
@@ -264,6 +315,18 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: Клиент не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Сервис временно недоступен
           content:
             application/json:
               schema:
@@ -285,89 +348,90 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServiceList'
         '404':
-          description: Клиент не найден
+          description: Услуги не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Сервис временно недоступен
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     
-    put:
+  /services/calculates:
+    get:
       tags:
         - Выбор услуг и временного интервала
-      summary: Выбрать услуги
+      summary: Рассчитать стоимость и длительность процедуры
       security:
         - BearerAuth: [] 
-      description: Позволяет клиенту выбрать услуги из списка доступных услуг.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/Service'
+      parameters:
+        - $ref: '#/components/parameters/selectedservices'
       responses:
         '200':
-          description: Услуги успешно выбраны
+          description: Успешный ответ с суммой стоимости, длительностью и списком выбранных услуг
           content:
             application/json:
-             schema:
-                $ref: '#/components/schemas/SelectedServices'
+              schema:
+                $ref: '#/components/schemas/SumServices'
         '400':
-          description: Ошибка валидации данных
+          description: Ошибка в запросе (неправильные параметры)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Сервис временно недоступен
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
                 
-  /services/schedule:
-    put:
-      tags:
-        - Выбор услуг и временного интервала
-      summary: Выбрать временной интервал
-      security:
-        - BearerAuth: [] 
-      description: Позволяет клиенту указать желаемый временной интервал для начала оказания услуги.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TimeInterval'
-      responses:
-        '200':
-          description: Услуга успешно запланирована
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Начало выполнения услуги успешно запланировано на 2023-10-15 с 14:30 до 15:30."
-        '400':
-          description: Ошибка валидации данных
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-    
   /masters:
     get:
       tags:
         - Выбор мастера
-      summary: Получить список мастеров
+      summary: Получить список подходящих мастеров
       security:
         - BearerAuth: [] 
-      description: Возвращает список мастеров, которые могут выполнить услугу с пагинацией по 10 человек.
+      description: Возвращает список мастеров по введенным услугам и временному интервалу
       parameters:
-        - name: page
+        - $ref: '#/components/parameters/selectedservices'
+        - name: date
           in: query
-          required: false
-          description: Номер страницы для пагинации (по умолчанию 1)
+          required: true
+          description: Дата, для которой нужно получить доступные временные окошки (в формате YYYY-MM-DD)
           schema:
-            type: integer
-            example: 1
+            type: string
+            example: "2023-10-15"
+        - name: startTime
+          in: query
+          required: true
+          description: Самое раннее время начала услуги в формате ЧЧ:ММ
+          schema:
+            type: string
+            example: "14:30"
+        - name: endTime
+          in: query
+          required: true
+          description: Самое позднее время начала услуги в формате ЧЧ:ММ
+          schema:
+            type: string
+            example: "15:30"
       responses:
         '200':
           description: Список мастеров успешно получен
@@ -388,8 +452,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Сервис временно недоступен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
-  /masters/{id}:
+  /masters/{masterId}:
     get:
       tags:
         - Выбор мастера
@@ -398,13 +474,7 @@ paths:
         - BearerAuth: [] 
       description: Возвращает подробную информацию о мастере по его уникальному идентификатору.
       parameters:
-        - name: id
-          in: path
-          required: true
-          description: Уникальный идентификатор мастера
-          schema:
-            type: string
-            example: "12345"
+        - $ref: '#/components/parameters/masterId'
       responses:
         '200':
           description: Данные о мастере успешно получены
@@ -418,23 +488,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Сервис временно недоступен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
-  /masters/{id}/available-slots:
+  /masters/{masterId}/available-time:
     get:
       tags:
         - Выбор мастера
-      summary: Получить доступные временные окошки у мастера
+      summary: Получить доступное время у мастера
       security:
         - BearerAuth: [] 
       description: Возвращает список доступных временных окошек для записи на услуги у конкретного мастера.
       parameters:
-        - name: id
-          in: path
-          required: true
-          description: Уникальный идентификатор мастера
-          schema:
-            type: string
-            example: "12345"
+        - $ref: '#/components/parameters/masterId'
+        - $ref: '#/components/parameters/selectedservices'
         - name: date
           in: query
           required: true
@@ -469,38 +546,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-                
-                
-  /clients/{clientid}/bookings:
-    get:
-      tags:
-      - Подтверждение заявки
-      summary: Получить расчет стоимости услуги
-      description: Возвращает информацию о стоимости услуги
-      security:
-        - BearerAuth: [] 
-      parameters:
-        - name: clientid
-          in: path
-          required: true
-          description: Уникальный идентификатор клиента
-          schema:
-            type: string
-            example: "client-123"
-      responses:
-        '200':
-          description: Успешный ответ с данными об услугах и их стоимости
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SelectedServices'
-        '404':
-          description: Ошибка расчета
+        '500':
+          description: Внутренняя ошибка сервера
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
+        '503':
+          description: Сервис временно недоступен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /clients/bookings:
     post:
       tags:
       - Подтверждение заявки
@@ -509,13 +568,7 @@ paths:
       security:
         - BearerAuth: [] 
       parameters:
-       - name: clientid
-         in: path
-         required: true
-         description: Уникальный идентификатор клиента
-         schema:
-          type: string
-          example: "89112894567"
+        - $ref: '#/components/parameters/clientId'
       requestBody:
         description: Данные заявки на услуги
         content:
@@ -523,12 +576,14 @@ paths:
             schema:
               type: object
               properties:
-                selectedServices:
-                  $ref: '#/components/schemas/SelectedServices'
-                selectedMasterName:
-                  type: string
-                  description: Имя выбранного мастера
-                  example: "Мария"
+                ClientInfo:
+                  $ref: '#/components/schemas/ClientInformation'
+                Selectedservices:
+                  $ref: '#/components/parameters/selectedservices'
+                selectedServices_total_time_cost:
+                  $ref: '#/components/schemas/SumServices'
+                Selected_Master:
+                  $ref: '#/components/parameters/masterId'
                 selectedTimeSlot:
                   $ref: '#/components/schemas/TimeSlot'
       responses:
@@ -546,6 +601,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Сервис временно недоступен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
                 
-   
-

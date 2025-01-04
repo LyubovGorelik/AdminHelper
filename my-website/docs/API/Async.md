@@ -2,53 +2,66 @@
 title: Асинхронное взаимодействие
 sidebar_position: 2
 ---
-# Схема
+#### Асинхронное взаимодействие: уведомление клиентов о предстоящей записи
 
-Асинхронное взаимодействие в системе: процесс передачи сформированной заявки от клиента на сервер.
+Для данной задачи я предлагаю использовать **RabbitMQ**. Вот обоснование выбора и описание контракта.
 
-Технология, выбранная для реализации этого взаимодействия: gRPC с использованием Protocol Buffers
+**Обоснование выбора RabbitMQ**
 
-Обоснования для выбора:
+- **Платформы и стек**:
 
-gRPC позволяет отправлять и  получать несколько сообщений в одном соединении. Поскольку я рассматриваю эту технологию для реализации системы в целом, мне важно оперативное обновление данных (окошек у мастера), возможность передавать файлы (ссылки на файлы) из портфолио мастера, и при этом чтобы страница загружалась достаточно быстро. 
+  - RabbitMQ поддерживает множество языков программирования и платформ, что делает его универсальным решением для различных приложений.
 
-Описание контракта с помощью Protocol Buffers:
+  - Он хорошо интегрируется с веб-приложениями, микросервисами и другими компонентами системы.
+
+- **Характер взаимодействия**:
+
+  - RabbitMQ обеспечивает надежную доставку сообщений с возможностью подтверждения (acknowledgment), что гарантирует получение уведомлений.
+
+  - Подходит для сценариев, где требуется обмен сообщениями между различными компонентами системы, например, уведомления от сервера к клиенту.
+
+- **Асинхронность**:
+
+  - RabbitMQ позволяет отправлять и получать сообщения независимо от времени, что идеально подходит для асинхронного взаимодействия.
+
+**Описание контракта с использованием AsyncAPI**
+
+Для описания контракта я использую формат **AsyncAPI**, так как предполагается использование JSON для обмена данными.
+
+**AsyncAPI документ**
+
+
 
 ```
-syntax = "proto3";
-
-package booking;
-
-// Сообщение для представления услуги
-message Service {
-    string name = 2; // Название услуги
-}
-
-// Сообщение для данных клиента
-message ClientInformation {
-    string fullName = 1; // ФИО клиента
-    string client_id = 2; // Номер телефона клиента
-    string email = 3; // Электронная почта клиента
-}
-
-// Запрос для отправки заявки
-message BookingsRequest {
-    ClientInformation client_info = 1; // Данные клиента
-    repeated Service selected_services = 2; // Список выбранных услуг
-    string master_id = 3; // Идентификатор выбранного мастера
-    string booking_date = 4; // Дата процедуры (в формате YYYY-MM-DD)
-    string booking_time = 5; // Время процедуры (в формате HH:MM)
-}
-
-// Ответ на заявку
-message BookingsResponse {
-    bool success = 1; // Успех отправки заявки (true/false)
-    string confirmation_id = 2; // Идентификатор подтверждения заявки
-}
-
-// Определение сервиса для обработки заявок
-service BookingsService {
-    rpc SubmitBooking(stream BookingsRequest) returns (stream BookingsResponse); // Асинхронная отправка заявки
-}
+asyncapi: '2.0.0'
+info:
+  title: Notification Service
+  version: '1.0.0'
+  description: Service for sending notifications to users.
+servers:
+  rabbitmq:
+    url: 'localhost:5672'
+    protocol: amqp
+channels:
+  notifications:
+    description: Channel for sending notifications to users.
+    subscribe:
+      summary: Receive notifications
+      operationId: receiveNotification
+      message:
+        contentType: application/json
+        payload:
+          type: object
+          properties:
+            userId:
+              type: string
+              description: Unique identifier for the user.
+            message:
+              type: string
+              description: Notification message content.
+            timestamp:
+              type: string
+              format: date-time
+              description: Time when the notification was sent.
 
 ```

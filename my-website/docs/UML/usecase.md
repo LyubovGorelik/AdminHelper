@@ -52,9 +52,25 @@ usecase "Просмотреть список заявок" as UC17
 
 usecase "Создать заявку вручную" as  UC18
 
+usecase "Удалить заявку" as UC24
+
 }
 
-m -right-> UC4
+usecase "Авторизоваться/зарегистрироваться в качестве админа" as UC19
+
+usecase "Авторизоваться/зарегистрироваться в качестве мастера" as UC20
+
+usecase "Просмотреть свое расписание" as UC21
+
+usecase "Просмотреть расписание салона" as UC22
+
+usecase "Изменить список услуг, выполняемых мастером" as UC23
+
+m --> UC4
+
+m -right-> UC20
+
+m --> UC21
 
 cl --> UC12
 
@@ -68,7 +84,7 @@ UC6 ..> UC11: include
 
 UC12 ..> UC14: include
 
-UC14 ..> UC6: include
+UC12 ..> UC6: include
 
 UC12 ..> UC7: include
 
@@ -76,15 +92,23 @@ UC12 .right..> UC13: include
 
 ad --> UC17
 
-UC17 <.. UC15: extend
+ad --> UC16
+
+ad --> UC15
 
 UC15 <... UC9: extend
 
 UC15 <... UC10: extend
 
-UC15 ..> UC16: include
-
 ad --> UC18
+
+ad -up-> UC19
+
+ad -up-> UC22
+
+ad-up-> UC23
+
+ad -right--> UC24
 
 @enduml
 
